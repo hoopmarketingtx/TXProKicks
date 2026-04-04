@@ -1252,20 +1252,33 @@ export default function Admin() {
   const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
-      if (u) {
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", u.id).maybeSingle();
-        setIsAdmin(profile?.role === "admin");
-      } else {
-        setIsAdmin(false);
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+      .then(({ data: profile }) => {
+        console.log("profile:", profile, "user:", user.email, "id:", user.id);
+        if (profile?.role === "admin") {
+          setIsAdmin(true);
+        } else {
+          supabase.from("profiles").select("role").eq("email", user.email).maybeSingle()
+            .then(({ data: byEmail }) => {
+              console.log("profile by email:", byEmail);
+              setIsAdmin(byEmail?.role === "admin");
+            });
+        }
+      });
+  }, [user]);
 
   const handleSetNewPassword = async (e) => {
     e.preventDefault();

@@ -817,6 +817,7 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
       )}
 
       <AdminShoeForm
+        key={editingShoe?.id ?? "new"}
         shoe={editingShoe}
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditingShoe(null); }}

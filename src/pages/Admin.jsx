@@ -1251,8 +1251,7 @@ export default function Admin() {
       setUser(u);
       if (u) {
         const { data: profile } = await supabase.from("profiles").select("role").eq("id", u.id).single();
-        // If no profile row exists yet, default to admin so the first user isn't locked out
-        setIsAdmin(!profile || profile.role === "admin");
+        setIsAdmin(profile?.role === "admin");
       }
       setAuthLoading(false);
     });

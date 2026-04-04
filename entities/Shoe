@@ -1,0 +1,90 @@
+{
+  "name": "Shoe",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Shoe Name"
+    },
+    "brand": {
+      "type": "string",
+      "title": "Brand",
+      "enum": [
+        "Nike",
+        "Jordan",
+        "Adidas",
+        "New Balance",
+        "Yeezy",
+        "Puma",
+        "Reebok",
+        "Converse",
+        "Vans",
+        "Other"
+      ]
+    },
+    "price": {
+      "type": "number",
+      "title": "Price"
+    },
+    "size": {
+      "type": "string",
+      "title": "Size"
+    },
+    "condition": {
+      "type": "string",
+      "title": "Condition",
+      "enum": [
+        "New",
+        "Like New",
+        "Gently Used",
+        "Used"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "image_url": {
+      "type": "string",
+      "title": "Main Image URL"
+    },
+    "additional_images": {
+      "type": "array",
+      "title": "Additional Images",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "Available",
+        "Sold",
+        "On Hold"
+      ],
+      "default": "Available"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category",
+      "enum": [
+        "Sneakers",
+        "Boots",
+        "Sandals",
+        "Dress Shoes",
+        "Athletic",
+        "Casual"
+      ]
+    }
+  },
+  "required": [
+    "name",
+    "brand",
+    "price",
+    "size",
+    "condition",
+    "image_url",
+    "status"
+  ]
+}

@@ -905,7 +905,7 @@ function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
       body: { action: "create", email: newUserEmail, password: newUserPass },
     });
     if (error || data?.error) {
-      setUserAlert({ type: "error", message: data?.error || error.message });
+      setUserAlert({ type: "error", message: data?.error || error?.message || JSON.stringify(error) });
       return;
     }
     setUsers((prev) => [...prev, { id: data.user.id, email: data.user.email, created_at: data.user.created_at }]);

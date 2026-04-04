@@ -904,8 +904,14 @@ function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
     const { data, error } = await supabase.functions.invoke("manage-users", {
       body: { action: "create", email: newUserEmail, password: newUserPass },
     });
-    if (error || data?.error) {
-      setUserAlert({ type: "error", message: data?.error || error?.message || JSON.stringify(error) });
+    if (error) {
+      let msg = error.message;
+      try { const b = await error.context?.json(); if (b?.error) msg = b.error; } catch {}
+      setUserAlert({ type: "error", message: msg });
+      return;
+    }
+    if (data?.error) {
+      setUserAlert({ type: "error", message: data.error });
       return;
     }
     setUsers((prev) => [...prev, { id: data.user.id, email: data.user.email, created_at: data.user.created_at }]);

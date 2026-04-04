@@ -41,7 +41,7 @@ function LoginScreen() {
     setLoading(true);
     setError("");
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    if (authError) setError("Invalid email or password.");
+    if (authError) setError(authError.message);
     setLoading(false);
   };
 

@@ -1252,19 +1252,17 @@ export default function Admin() {
   const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       if (u) {
-        const { data: profile, error: profileError } = await supabase.from("profiles").select("role").eq("id", u.id).maybeSingle();
-        console.log("profile:", profile, "error:", profileError, "user:", u.email, "id:", u.id);
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", u.id).maybeSingle();
         setIsAdmin(profile?.role === "admin");
+      } else {
+        setIsAdmin(false);
       }
       setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
     });
     return () => subscription.unsubscribe();
   }, []);

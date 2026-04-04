@@ -944,6 +944,7 @@ function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
       return;
     }
     try {
+      const truncate = (val) => typeof val === "string" && val.length > 32767 ? val.slice(0, 32767) : (val ?? "");
       const rows = shoes.map((s) => ({
         ID:           s.id,
         Brand:        s.brand,
@@ -954,8 +955,8 @@ function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
         Condition:    s.condition,
         Status:       s.status,
         Category:     s.category,
-        Description:  s.description,
-        Image_URL:    s.image_url,
+        Description:  truncate(s.description),
+        Image_URL:    s.image_url?.startsWith("data:") ? "(base64 image)" : truncate(s.image_url),
         Hold_Name:    s.hold_name ?? "",
         Hold_Until:   s.hold_until ?? "",
         Created_Date: s.created_date,

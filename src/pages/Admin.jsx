@@ -1236,17 +1236,34 @@ export default function Admin() {
   const [activeSection, setActiveSection] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [recoveryError, setRecoveryError] = useState("");
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleSetNewPassword = async (e) => {
+    e.preventDefault();
+    setRecoveryError("");
+    if (newPassword !== newPasswordConfirm) { setRecoveryError("Passwords do not match."); return; }
+    if (newPassword.length < 6) { setRecoveryError("Password must be at least 6 characters."); return; }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) { setRecoveryError(error.message); return; }
+    setRecoverySuccess(true);
+    setTimeout(() => { setRecoveryMode(false); setRecoverySuccess(false); setNewPassword(""); setNewPasswordConfirm(""); }, 2000);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -1263,6 +1280,30 @@ export default function Admin() {
 
   if (!user) {
     return <LoginScreen />;
+  }
+
+  if (recoveryMode) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-8 shadow-xl">
+          <h1 className="font-heading text-2xl font-bold text-foreground mb-1">Set New Password</h1>
+          <p className="font-body text-sm text-muted-foreground mb-6">Choose a new password for your account.</p>
+          <form onSubmit={handleSetNewPassword} className="space-y-4">
+            <div>
+              <Label className="font-body text-sm text-muted-foreground">New Password</Label>
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" required className="mt-1" />
+            </div>
+            <div>
+              <Label className="font-body text-sm text-muted-foreground">Confirm Password</Label>
+              <Input type="password" value={newPasswordConfirm} onChange={(e) => setNewPasswordConfirm(e.target.value)} autoComplete="new-password" required className="mt-1" />
+            </div>
+            {recoveryError && <p className="font-body text-sm text-destructive">{recoveryError}</p>}
+            {recoverySuccess && <p className="font-body text-sm text-green-400">Password updated! Redirecting...</p>}
+            <Button type="submit" className="w-full font-heading tracking-wider">Update Password</Button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   return (

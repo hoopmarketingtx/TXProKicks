@@ -939,26 +939,35 @@ function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
   const importRef = useRef(null);
 
   const handleExport = () => {
-    const rows = shoes.map((s) => ({
-      ID:           s.id,
-      Brand:        s.brand,
-      Name:         s.name,
-      Price:        s.price,
-      Cost:         s.cost ?? "",
-      Size:         s.size,
-      Condition:    s.condition,
-      Status:       s.status,
-      Category:     s.category,
-      Description:  s.description,
-      Image_URL:    s.image_url,
-      Hold_Name:    s.hold_name ?? "",
-      Hold_Until:   s.hold_until ?? "",
-      Created_Date: s.created_date,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-    XLSX.writeFile(wb, `txprokicks-inventory-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    if (!shoes || shoes.length === 0) {
+      toast({ title: "Nothing to export.", description: "No shoes in inventory.", variant: "destructive" });
+      return;
+    }
+    try {
+      const rows = shoes.map((s) => ({
+        ID:           s.id,
+        Brand:        s.brand,
+        Name:         s.name,
+        Price:        s.price,
+        Cost:         s.cost ?? "",
+        Size:         s.size,
+        Condition:    s.condition,
+        Status:       s.status,
+        Category:     s.category,
+        Description:  s.description,
+        Image_URL:    s.image_url,
+        Hold_Name:    s.hold_name ?? "",
+        Hold_Until:   s.hold_until ?? "",
+        Created_Date: s.created_date,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+      XLSX.writeFile(wb, `txprokicks-inventory-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error("Export error:", err);
+      toast({ title: "Export failed.", description: err.message, variant: "destructive" });
+    }
   };
 
   const handleImportFile = (e) => {

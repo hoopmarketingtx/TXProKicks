@@ -31,23 +31,20 @@ serve(async (req: Request) => {
       );
     }
 
-    // Create an anon client to verify the caller's token
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
+    // Admin client with service role key for user management
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: { user: caller }, error: callerErr } = await callerClient.auth.getUser();
+
+    // Verify the caller is authenticated using the service role admin client
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: caller }, error: callerErr } = await adminClient.auth.getUser(token);
     if (callerErr || !caller) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Admin client with service role key for user management
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     const body = await req.json();
     const { action, email, password, userId } = body;
@@ -73,10 +70,10 @@ serve(async (req: Request) => {
         );
       }
 
-      // Upsert into profiles table (trigger may already have done this)
+      // Upsert into profiles table with employee role
       await adminClient
         .from("profiles")
-        .upsert({ id: data.user.id, email: data.user.email }, { onConflict: "id" });
+        .upsert({ id: data.user.id, email: data.user.email, role: "employee" }, { onConflict: "id" });
 
       return new Response(
         JSON.stringify({ user: { id: data.user.id, email: data.user.email } }),

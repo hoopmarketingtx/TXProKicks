@@ -1257,6 +1257,7 @@ export default function Admin() {
       setUser(u);
       if (u) {
         const { data: profile } = await supabase.from("profiles").select("role").eq("id", u.id).single();
+        console.log("Profile fetch result:", profile, "for user:", u.email);
         setIsAdmin(profile?.role === "admin");
       }
       setAuthLoading(false);

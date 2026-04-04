@@ -839,7 +839,7 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
   );
 }
 // â”€â”€â”€ Settings Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function SettingsSection({ shoes, addShoe, clearAll }) {
+function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [alert, setAlert] = useState({ type: "", message: "" });
@@ -1076,14 +1076,16 @@ function SettingsSection({ shoes, addShoe, clearAll }) {
             className="hidden"
             onChange={handleImportFile}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleClearInventory}
-            className="font-heading tracking-wider border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive/60"
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Clear All Inventory
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearInventory}
+              className="font-heading tracking-wider border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive/60"
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Clear All Inventory
+            </Button>
+          )}
         </div>
         <p className="font-body text-xs text-muted-foreground mt-4">
           Import columns: <span className="text-foreground">Brand, Name, Price, Cost, Size, Condition, Status, Category, Description, Image_URL, Hold_Name, Hold_Until</span>.
@@ -1091,8 +1093,8 @@ function SettingsSection({ shoes, addShoe, clearAll }) {
         </p>
       </div>
 
-      {/* User Management */}
-      <div className="bg-card border border-border rounded-xl p-6 mt-6">
+      {/* User Management — admin only */}
+      {isAdmin && <div className="bg-card border border-border rounded-xl p-6 mt-6">
         <div className="flex items-center gap-2 mb-1">
           <ShieldCheck className="w-4 h-4 text-primary" />
           <h2 className="font-heading text-lg font-bold text-foreground">User Management</h2>
@@ -1205,9 +1207,9 @@ function SettingsSection({ shoes, addShoe, clearAll }) {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
-      <AlertDialog open={!!confirmRemoveUser} onOpenChange={() => setConfirmRemoveUser(null)}>
+      {isAdmin && <AlertDialog open={!!confirmRemoveUser} onOpenChange={() => setConfirmRemoveUser(null)}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-heading text-foreground">Remove User?</AlertDialogTitle>
@@ -1225,7 +1227,7 @@ function SettingsSection({ shoes, addShoe, clearAll }) {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>}
     </div>
   );
 }
@@ -1233,6 +1235,7 @@ function SettingsSection({ shoes, addShoe, clearAll }) {
 export default function Admin() {
   const { shoes, loading, addShoe, updateShoe, deleteShoe, clearAll } = useShoes();
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -1243,8 +1246,13 @@ export default function Admin() {
   const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", u.id).single();
+        setIsAdmin(profile?.role === "admin");
+      }
       setAuthLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -1346,7 +1354,7 @@ export default function Admin() {
             />
           )}
           {activeSection === "settings" && (
-            <SettingsSection shoes={shoes} addShoe={addShoe} clearAll={clearAll} />
+            <SettingsSection shoes={shoes} addShoe={addShoe} clearAll={clearAll} isAdmin={isAdmin} />
           )}
         </main>
       </div>

@@ -490,11 +490,13 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
 
   const handleSave = async (data) => {
     if (editingShoe) {
-      updateShoe(editingShoe.id, data);
-      toast({ title: "Shoe updated!" });
+      const result = await updateShoe(editingShoe.id, data);
+      if (result) toast({ title: "Shoe updated!" });
+      else toast({ title: "Failed to update shoe.", description: "Check the browser console for details.", variant: "destructive" });
     } else {
-      addShoe(data);
-      toast({ title: "Shoe added to inventory!" });
+      const result = await addShoe(data);
+      if (result) toast({ title: "Shoe added to inventory!" });
+      else toast({ title: "Failed to add shoe.", description: "Check the browser console for details.", variant: "destructive" });
     }
     setEditingShoe(null);
     setFormOpen(false);

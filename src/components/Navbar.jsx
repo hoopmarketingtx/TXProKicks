@@ -1,64 +1,62 @@
 import { Link, useLocation } from "react-router-dom";
-import { ShieldCheck, Menu, X, ShoppingCart, Instagram, Facebook } from "lucide-react";
-import { useState } from "react";
+import { ShieldCheck, ShoppingCart, Instagram, Facebook } from "lucide-react";
 import { useCart } from "@/lib/CartContext";
 
 export default function Navbar() {
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const isAdmin = location.pathname.startsWith("/admin");
   const { items, setCartOpen } = useCart();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-heading text-2xl tracking-widest text-white">TX<span className="text-primary">PRO</span>KICKS</span>
+        <div className="flex items-center h-16 gap-2">
+          <Link to="/" className="flex-none flex items-center gap-2">
+            <span className="font-heading text-xl sm:text-2xl tracking-widest text-white">TX<span className="text-primary">PRO</span>KICKS</span>
           </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-8">
+          {/* Nav links - all screen sizes */}
+          <div className="flex-1 flex items-center justify-center gap-3 md:gap-8">
             <Link
               to="/"
-              className={`font-body text-sm font-medium tracking-wide transition-colors hover:text-primary ${
-                location.pathname === "/" ? "text-primary" : "text-muted-foreground"
+              className={`font-body text-[10px] md:text-sm font-medium tracking-wide transition-colors hover:text-primary ${
+                location.pathname === "/" ? "text-primary" : "text-white/60"
               }`}
             >
               SHOP
             </Link>
             <Link
               to="/inventory"
-              className={`font-body text-sm font-medium tracking-wide transition-colors hover:text-primary ${
-                location.pathname === "/inventory" ? "text-primary" : "text-muted-foreground"
+              className={`font-body text-[10px] md:text-sm font-medium tracking-wide transition-colors hover:text-primary ${
+                location.pathname === "/inventory" ? "text-primary" : "text-white/60"
               }`}
             >
               INVENTORY
             </Link>
             <Link
               to="/about"
-              className={`font-body text-sm font-medium tracking-wide transition-colors hover:text-primary ${
-                location.pathname === "/about" ? "text-primary" : "text-muted-foreground"
+              className={`font-body text-[10px] md:text-sm font-medium tracking-wide transition-colors hover:text-primary ${
+                location.pathname === "/about" ? "text-primary" : "text-white/60"
               }`}
             >
               ABOUT
             </Link>
             <Link
               to="/admin"
-              className={`font-body text-sm font-medium tracking-wide transition-colors hover:text-primary flex items-center gap-1.5 ${
-                location.pathname.startsWith("/admin") ? "text-primary" : "text-muted-foreground"
+              className={`font-body text-[10px] md:text-sm font-medium tracking-wide transition-colors hover:text-primary flex items-center gap-1 ${
+                location.pathname.startsWith("/admin") ? "text-primary" : "text-white/60"
               }`}
             >
-              <ShieldCheck className="w-4 h-4" />
+              <ShieldCheck className="w-3 h-3 md:w-4 md:h-4" />
               ADMIN
             </Link>
-            <div className="flex items-center gap-3 border-l border-white/10 pl-6">
+            <div className="hidden md:flex items-center gap-3 border-l border-white/10 pl-6">
               <a
                 href="https://www.instagram.com/txprokicks/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                className="text-muted-foreground hover:text-primary transition-colors"
+                className="text-white/60 hover:text-primary transition-colors"
               >
                 <Instagram className="w-4 h-4" />
               </a>
@@ -67,7 +65,7 @@ export default function Navbar() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
-                className="text-muted-foreground hover:text-primary transition-colors"
+                className="text-white/60 hover:text-primary transition-colors"
               >
                 <Facebook className="w-4 h-4" />
               </a>
@@ -78,7 +76,7 @@ export default function Navbar() {
           {!isAdmin && (
             <button
               onClick={() => setCartOpen(true)}
-              className="relative text-white/70 hover:text-white transition-colors"
+              className="flex-none relative text-white/70 hover:text-white transition-colors"
               aria-label="Open cart"
             >
               <ShoppingCart className="w-5 h-5" />
@@ -89,28 +87,8 @@ export default function Navbar() {
               )}
             </button>
           )}
-
-          {/* Mobile toggle */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden text-white"
-          >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="md:hidden bg-background border-b border-border px-4 pb-4 space-y-3">
-          <Link to="/" onClick={() => setMobileOpen(false)} className="block font-body text-sm font-medium text-muted-foreground hover:text-primary">SHOP</Link>
-          <Link to="/inventory" onClick={() => setMobileOpen(false)} className="block font-body text-sm font-medium text-muted-foreground hover:text-primary">INVENTORY</Link>
-          <Link to="/about" onClick={() => setMobileOpen(false)} className="block font-body text-sm font-medium text-muted-foreground hover:text-primary">ABOUT</Link>
-          <Link to="/admin" onClick={() => setMobileOpen(false)} className="flex items-center gap-1.5 font-body text-sm font-medium text-muted-foreground hover:text-primary">
-            <ShieldCheck className="w-4 h-4" /> ADMIN
-          </Link>
-        </div>
-      )}
     </nav>
   );
 }

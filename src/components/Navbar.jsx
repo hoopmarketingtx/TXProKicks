@@ -78,7 +78,7 @@ export default function Navbar() {
           {!isAdmin && (
             <button
               onClick={() => setCartOpen(true)}
-              className="relative text-muted-foreground hover:text-foreground transition-colors"
+              className="relative text-white/70 hover:text-white transition-colors"
               aria-label="Open cart"
             >
               <ShoppingCart className="w-5 h-5" />
@@ -93,7 +93,7 @@ export default function Navbar() {
           {/* Mobile toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden text-foreground"
+            className="md:hidden text-white"
           >
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

@@ -95,7 +95,7 @@ export default function ShoePage() {
   const handleBuyNow = () => {
     addToCart(shoe);
     setCartOpen(true);
-    navigate("/checkout");
+    // navigate("/checkout") removed — there is no /checkout route, it caused a 404 behind the cart drawer
   };
 
   const copyLink = async () => {

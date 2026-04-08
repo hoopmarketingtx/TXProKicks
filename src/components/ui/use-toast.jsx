@@ -2,7 +2,10 @@
 import { useState, useEffect } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+// Time after a toast is dismissed to actually remove it (allow for close animation)
+const TOAST_REMOVE_DELAY = 400; // 400ms
+// Default toast duration (auto-dismiss)
+const DEFAULT_TOAST_DURATION = 4000; // 4s
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -19,6 +22,7 @@ function genId() {
 }
 
 const toastTimeouts = new Map();
+const dismissTimeouts = new Map();
 
 const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
@@ -27,6 +31,12 @@ const addToRemoveQueue = (toastId) => {
 
   const timeout = setTimeout(() => {
     toastTimeouts.delete(toastId);
+    // clear any scheduled dismiss timeout as we're removing now
+    const d = dismissTimeouts.get(toastId);
+    if (d) {
+      clearTimeout(d);
+      dismissTimeouts.delete(toastId);
+    }
     dispatch({
       type: actionTypes.REMOVE_TOAST,
       toastId,
@@ -41,6 +51,14 @@ const _clearFromRemoveQueue = (toastId) => {
   if (timeout) {
     clearTimeout(timeout);
     toastTimeouts.delete(toastId);
+  }
+};
+
+const _clearDismissTimeout = (toastId) => {
+  const timeout = dismissTimeouts.get(toastId);
+  if (timeout) {
+    clearTimeout(timeout);
+    dismissTimeouts.delete(toastId);
   }
 };
 
@@ -120,7 +138,10 @@ function toast({ ...props }) {
     });
 
   const dismiss = () =>
-    dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
+    (function () {
+      _clearDismissTimeout(id);
+      dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
+    })();
 
   dispatch({
     type: actionTypes.ADD_TOAST,
@@ -133,6 +154,16 @@ function toast({ ...props }) {
       },
     },
   });
+
+  // Auto-dismiss after duration (unless duration is Infinity)
+  const duration = typeof props.duration === "number" ? props.duration : DEFAULT_TOAST_DURATION;
+  if (duration !== Infinity && duration > 0) {
+    const t = setTimeout(() => {
+      // trigger dismiss which will schedule removal
+      dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
+    }, duration);
+    dismissTimeouts.set(id, t);
+  }
 
   return {
     id,

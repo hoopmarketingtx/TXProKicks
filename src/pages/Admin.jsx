@@ -1851,13 +1851,13 @@ export default function Admin() {
       {/* Main content shifted right on desktop */}
       <div className="flex-1 lg:pl-64 min-h-screen flex flex-col">
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card sticky top-0 z-10">
+        <div className="lg:hidden flex items-center gap-4 px-4 py-4 border-b border-border bg-card sticky top-0 z-10">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-foreground hover:text-primary transition-colors"
+            className="p-3 rounded-md text-foreground hover:text-primary transition-colors z-40"
             aria-label="Open sidebar"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-6 h-6" />
           </button>
           <span className="font-heading font-bold text-foreground">
             {NAV_ITEMS.find((i) => i.id === activeSection)?.label || "Overview"}

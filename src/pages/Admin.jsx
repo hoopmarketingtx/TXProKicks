@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer } from "@/components/ui/chart";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid } from "recharts";
 import { toast } from "@/components/ui/use-toast";
 import AdminShoeForm from "../components/AdminShoeForm";
@@ -239,6 +240,29 @@ function OverviewSection({ shoes, onNavigate }) {
   const [employees, setEmployees] = useState([]);
   const [employeeFilter, setEmployeeFilter] = useState("All");
   const [salesData, setSalesData] = useState([]);
+  const [profitModalOpen, setProfitModalOpen] = useState(false);
+
+  const profitList = useMemo(() => {
+    return (shoes || []).map((s) => {
+      const price = s.price != null ? Number(s.price) : null;
+      const cost = s.cost != null ? Number(s.cost) : null;
+      const profit = price != null && cost != null ? price - cost : null;
+      return {
+        id: s.id,
+        name: s.name,
+        price,
+        cost,
+        profit,
+        status: s.status,
+        sold_date: s.sold_date,
+        sold_by: s.sold_by,
+      };
+    }).sort((a, b) => {
+      const ap = typeof a.profit === 'number' ? a.profit : -Infinity;
+      const bp = typeof b.profit === 'number' ? b.profit : -Infinity;
+      return bp - ap;
+    });
+  }, [shoes]);
 
   const available = shoes.filter((s) => s.status === "Available");
   const sold = shoes.filter((s) => s.status === "Sold");
@@ -362,7 +386,56 @@ function OverviewSection({ shoes, onNavigate }) {
             </div>
           );
         })}
+        {/* Profit breakdown quick action */}
+        <div className="bg-card border border-border rounded-xl p-5">
+          <button onClick={() => setProfitModalOpen(true)} className="w-full text-left">
+            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mb-3", "bg-primary/10")}>
+              <BarChart2 className="w-5 h-5 text-primary" />
+            </div>
+            <p className="font-heading text-2xl font-bold text-foreground">Details</p>
+            <p className="font-body text-sm text-muted-foreground mt-0.5">Profit Breakdown</p>
+          </button>
+        </div>
       </div>
+
+      {/* Profit breakdown modal */}
+      <Dialog open={profitModalOpen} onOpenChange={setProfitModalOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Profit Breakdown</DialogTitle>
+            <DialogDescription>Shows price, cost, and profit for each shoe. Missing cost will show as N/A.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-3 max-h-[60vh] overflow-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-xs text-muted-foreground border-b border-border/50">
+                  <th className="px-3 py-2">Shoe</th>
+                  <th className="px-3 py-2">Price</th>
+                  <th className="px-3 py-2">Cost</th>
+                  <th className="px-3 py-2">Profit</th>
+                  <th className="px-3 py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profitList.map((p) => (
+                  <tr key={p.id} className="border-b border-border/30 hover:bg-secondary/10">
+                    <td className="px-3 py-2 align-top font-body text-sm">{p.name}</td>
+                    <td className="px-3 py-2 font-mono">{p.price != null ? `$${p.price.toFixed(2)}` : '—'}</td>
+                    <td className="px-3 py-2 font-mono">{p.cost != null ? `$${p.cost.toFixed(2)}` : '—'}</td>
+                    <td className={cn("px-3 py-2 font-mono font-semibold", { 'text-green-400': typeof p.profit === 'number' && p.profit > 0, 'text-destructive': typeof p.profit === 'number' && p.profit < 0 })}>
+                      {typeof p.profit === 'number' ? `$${p.profit.toFixed(2)}` : '—'}
+                    </td>
+                    <td className="px-3 py-2 font-body text-sm text-muted-foreground">{p.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setProfitModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sales overview (last 30 days) */}
       <div className="bg-card border border-border rounded-xl p-6 mb-6">

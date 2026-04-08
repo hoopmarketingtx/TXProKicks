@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChartContainer } from "@/components/ui/chart";
+import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid } from "recharts";
 import { toast } from "@/components/ui/use-toast";
 import AdminShoeForm from "../components/AdminShoeForm";
 import { cn } from "@/lib/utils";
@@ -27,7 +29,6 @@ import { BRAND_OPTIONS, normalizeBrand } from "@/lib/brand-utils";
 const NAV_ITEMS = [
   { id: "overview", label: "Overview", icon: Home },
   { id: "inventory", label: "Inventory", icon: Package },
-  { id: "orders", label: "Orders", icon: ShoppingBag },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -235,6 +236,9 @@ function OverviewSection({ shoes, onNavigate }) {
   const [overviewSort, setOverviewSort] = useState({ field: "created_date", dir: "desc" });
   const [overviewStatusFilter, setOverviewStatusFilter] = useState("All");
   const [overviewShowAll, setOverviewShowAll] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [employeeFilter, setEmployeeFilter] = useState("All");
+  const [salesData, setSalesData] = useState([]);
 
   const available = shoes.filter((s) => s.status === "Available");
   const sold = shoes.filter((s) => s.status === "Sold");
@@ -260,6 +264,45 @@ function OverviewSection({ shoes, onNavigate }) {
     return acc;
   }, {});
   const sizeEntries = Object.entries(sizeCounts).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
+
+  // Sales chart data (last 30 days) and employee filter
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.from("profiles").select("email").eq("role", "employee");
+        if (!error && Array.isArray(data) && mounted) {
+          setEmployees(data.map((r) => r.email).filter(Boolean));
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    // Build revenue timeseries for last 30 days
+    const days = 30;
+    const now = new Date();
+    const series = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const dayStr = d.toISOString().slice(0, 10);
+      const filtered = sold.filter((s) => {
+        if (!s.sold_date) return false;
+        const soldDay = new Date(s.sold_date).toISOString().slice(0, 10);
+        if (soldDay !== dayStr) return false;
+        if (employeeFilter !== "All") return (s.sold_by === employeeFilter);
+        return true;
+      });
+      const revenue = filtered.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+      const count = filtered.length;
+      series.push({ date: dayStr, revenue, count });
+    }
+    setSalesData(series);
+  }, [sold, employeeFilter]);
 
   const alerts = [];
   if (available.length < 5) alerts.push({ type: "warning", msg: `Low inventory: only ${available.length} pair${available.length !== 1 ? "s" : ""} available.` });
@@ -318,6 +361,38 @@ function OverviewSection({ shoes, onNavigate }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Sales overview (last 30 days) */}
+      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <span className="font-heading text-base font-semibold text-foreground">Sales (Last 30 days)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={employeeFilter} onValueChange={(v) => setEmployeeFilter(v)}>
+              <SelectTrigger className="h-8 text-xs bg-secondary border-border font-body w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Employees</SelectItem>
+                {employees.map((e) => (
+                  <SelectItem key={e} value={e}>{e}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <ChartContainer id="sales-overview" className="h-48" config={{ revenue: { color: '#10b981', label: 'Revenue' } }}>
+          <LineChart data={salesData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString()} />
+            <YAxis />
+            <RechartsTooltip />
+            <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={false} name="Revenue" />
+          </LineChart>
+        </ChartContainer>
       </div>
 
       {/* Size breakdown */}
@@ -426,7 +501,7 @@ function OverviewSection({ shoes, onNavigate }) {
 }
 
 // â”€â”€â”€ Inventory Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
+function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById, user }) {
   const [tab, setTab] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editingShoe, setEditingShoe] = useState(null);
@@ -515,7 +590,7 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
     const buyer = window.prompt(`Buyer name for ${shoe.name} (optional):`, "") || null;
     if (!window.confirm(`Mark "${shoe.name}" as Sold?`)) return;
     try {
-      const result = await updateShoe(shoe.id, { status: "Sold", sold_date: new Date().toISOString(), buyer_name: buyer });
+      const result = await updateShoe(shoe.id, { status: "Sold", sold_date: new Date().toISOString(), buyer_name: buyer, sold_by: user?.email ?? null });
       if (result) {
         toast({ title: `Marked ${shoe.name} as Sold.` });
       } else {
@@ -1725,6 +1800,7 @@ export default function Admin() {
               addShoe={addShoe}
               updateShoe={updateShoe}
               deleteShoeById={deleteShoe}
+              user={user}
             />
           )}
           {activeSection === "orders" && (

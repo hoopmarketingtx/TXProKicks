@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageUploader from "./ImageUploader";
 import { Loader2 } from "lucide-react";
+import { generateStandardSizeOptions } from "@/lib/size-utils";
 
 const brands = ["Nike", "Jordan", "Adidas", "New Balance", "Yeezy", "Puma", "Reebok", "Converse", "Vans", "Other"];
 const conditions = ["New", "Like New", "Gently Used", "Used"];
@@ -31,6 +32,8 @@ export default function AdminShoeForm({ shoe, open, onClose, onSave }) {
     hold_until: shoe?.hold_until || "",
   });
   const [saving, setSaving] = useState(false);
+
+  const sizeOptions = useMemo(() => generateStandardSizeOptions(4, 15, 0.5), []);
 
   const handleSave = async () => {
     if (!form.name || !form.price || !form.size || !form.image_url) return;
@@ -91,7 +94,19 @@ export default function AdminShoeForm({ shoe, open, onClose, onSave }) {
             )}
             <div>
               <Label className="font-body text-sm text-muted-foreground">Size *</Label>
-              <Input value={form.size} onChange={(e) => update("size", e.target.value)} className="mt-1 bg-secondary border-border" placeholder="e.g. 10.5" />
+              <Select value={form.size} onValueChange={(v) => update("size", v)}>
+                <SelectTrigger className="mt-1 bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {sizeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex flex-col">
+                        <span className="leading-tight">{opt.primary}</span>
+                        <span className="text-xs text-muted-foreground mt-0.5">{opt.secondary}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="font-body text-sm text-muted-foreground">Condition *</Label>

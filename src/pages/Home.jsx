@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useShoes } from "@/lib/ShoeContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "../components/Navbar";
 import ShoeCard from "../components/ShoeCard";
-import ShoeDetailModal from "../components/ShoeDetailModal";
 import CheckoutModal from "../components/CheckoutModal";
 import HeroShowcase from "../components/HeroShowcase";
 import Footer from "../components/Footer";
+import { BRAND_OPTIONS } from "@/lib/brand-utils";
 
 const containerVariants = {
   hidden: {},
@@ -25,21 +25,25 @@ const itemVariants = {
   },
 };
 
-const BRANDS = [
-  "NIKE", "AIR JORDAN", "ADIDAS", "NEW BALANCE", "YEEZY",
-  "CONVERSE", "VANS", "PUMA", "REEBOK", "ASICS", "SAUCONY", "ON RUNNING",
-];
+// Use the canonical brand options (exclude the initial "All" entry)
+const BRANDS = BRAND_OPTIONS.slice(1);
 
 // All image_url values verified via Unsplash photo pages — exact shoe descriptions confirmed
 export default function Home() {
   const { filterShoes, loading } = useShoes();
-  const [selectedShoe, setSelectedShoe] = useState(null);
+  const navigate = useNavigate();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   // Show the 8 most recently added available shoes
   const shoes = filterShoes({ status: "Available" })
     .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0))
     .slice(0, 8);
+
+  // Build a longer repeated brand list for a seamless marquee
+  const repeatCount = 6;
+  const baseList = BRANDS;
+  const longList = Array.from({ length: repeatCount }).flatMap(() => baseList);
+  const marqueeItems = [...longList, ...longList];
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,8 +116,8 @@ export default function Home() {
               className="flex items-center gap-8 pt-5 border-t border-white/10"
             >
               {[
-                { value: "100+", label: "Pairs Sold" },
-                { value: "Est. 2024", label: "Founded" },
+                { value: "10,000+", label: "Pairs Sold" },
+                { value: "Est. 2020", label: "Founded" },
                 { value: "100%", label: "Authentic" },
               ].map((stat) => (
                 <div key={stat.label}>
@@ -140,17 +144,17 @@ export default function Home() {
 
       {/* Brand marquee strip */}
       <div className="overflow-hidden bg-primary border-y border-red-900/40 py-[10px]">
-        <div className="flex animate-marquee whitespace-nowrap">
-          {[...BRANDS, ...BRANDS].map((brand, i) => (
-            <span
-              key={i}
-              className="font-heading text-white/85 text-sm tracking-[0.25em] mx-5 shrink-0"
-            >
-              {brand}
-              <span className="ml-5 text-white/35">•</span>
-            </span>
-          ))}
-        </div>
+          <div className="flex animate-marquee whitespace-nowrap">
+            {marqueeItems.map((brand, i) => (
+              <span
+                key={`${brand}-${i}`}
+                className="font-heading text-white/85 text-sm tracking-[0.25em] mx-5 shrink-0"
+              >
+                {brand}
+                <span className="ml-5 text-white/35">•</span>
+              </span>
+            ))}
+          </div>
       </div>
 
       {/* Latest Drops */}
@@ -178,7 +182,7 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {shoes.map((shoe) => (
-              <ShoeCard key={shoe.id} shoe={shoe} onClick={setSelectedShoe} />
+              <ShoeCard key={shoe.id} shoe={shoe} onClick={() => navigate(`/shoe/${shoe.id}`)} />
             ))}
           </div>
         )}
@@ -186,12 +190,6 @@ export default function Home() {
 
       <Footer />
 
-      <ShoeDetailModal
-        shoe={selectedShoe}
-        open={!!selectedShoe}
-        onClose={() => setSelectedShoe(null)}
-        onCheckout={() => { setSelectedShoe(null); setCheckoutOpen(true); }}
-      />
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
     </div>
   );

@@ -2,9 +2,10 @@
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { useShoes } from "@/lib/ShoeContext";
+import { useCart } from "@/lib/CartContext";
 import {
   Plus, Pencil, Trash2, Loader2, Package, DollarSign, LayoutGrid,
-  Eye, EyeOff, LogOut, Settings, Home, TrendingUp,
+  Eye, EyeOff, LogOut, Settings, Home, TrendingUp, ShoppingBag,
   Download, Upload, Lock, ExternalLink, Menu, Search,
   AlertTriangle, Clock, BarChart2, CheckCircle, RefreshCw,
   ArrowUp, ArrowDown, ArrowUpDown, Filter, X, UserPlus, Users, Mail, ShieldCheck,
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/use-toast";
 import AdminShoeForm from "../components/AdminShoeForm";
 import { cn } from "@/lib/utils";
+import { BRAND_OPTIONS, normalizeBrand } from "@/lib/brand-utils";
 
 // Auth is handled by Supabase - see src/lib/supabase.js
 
@@ -25,6 +27,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { id: "overview", label: "Overview", icon: Home },
   { id: "inventory", label: "Inventory", icon: Package },
+  { id: "orders", label: "Orders", icon: ShoppingBag },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -69,6 +72,7 @@ function LoginScreen() {
               className="mt-1 bg-secondary border-border"
             />
           </div>
+          
           <div>
             <Label className="font-body text-sm text-muted-foreground">Password</Label>
             <div className="relative mt-1">
@@ -442,10 +446,7 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
   const [historySearch, setHistorySearch] = useState("");
   const [historySort, setHistorySort] = useState({ field: "price", dir: "desc" });
 
-  const brands = useMemo(
-    () => ["All", ...new Set(shoes.map((s) => s.brand).filter(Boolean))].sort(),
-    [shoes]
-  );
+  const brands = useMemo(() => BRAND_OPTIONS, []);
 
   const makeSort = (setter) => (field) =>
     setter((prev) =>
@@ -459,7 +460,7 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
         const q = search.toLowerCase();
         if (!s.name?.toLowerCase().includes(q) && !s.brand?.toLowerCase().includes(q)) return false;
       }
-      if (allBrand !== "All" && s.brand !== allBrand) return false;
+      if (allBrand !== "All" && normalizeBrand(s.brand) !== allBrand) return false;
       if (allCondition !== "All" && s.condition !== allCondition) return false;
       return true;
     }),
@@ -507,6 +508,53 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
     deleteShoeById(confirmDelete.id);
     setConfirmDelete(null);
     toast({ title: "Shoe removed from inventory." });
+  };
+
+  // Quick status actions for employees
+  const handleMarkSold = async (shoe) => {
+    const buyer = window.prompt(`Buyer name for ${shoe.name} (optional):`, "") || null;
+    if (!window.confirm(`Mark "${shoe.name}" as Sold?`)) return;
+    try {
+      const result = await updateShoe(shoe.id, { status: "Sold", sold_date: new Date().toISOString(), buyer_name: buyer });
+      if (result) {
+        toast({ title: `Marked ${shoe.name} as Sold.` });
+      } else {
+        toast({ title: `Failed to mark ${shoe.name} as Sold.`, variant: "destructive" });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({ title: `Error marking sold: ${err?.message || err}`, variant: "destructive" });
+    }
+  };
+
+  const handlePlaceHold = async (shoe) => {
+    const name = window.prompt(`Hold for (customer name) for ${shoe.name}:`, "") || null;
+    const dateInput = window.prompt("Hold until date (YYYY-MM-DD). Leave blank for 7 days from now:", "");
+    const holdUntil = dateInput ? new Date(dateInput).toISOString() : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    if (!window.confirm(`Place "${shoe.name}" on hold for ${name || "(no name)"} until ${new Date(holdUntil).toLocaleDateString()}?`)) return;
+    try {
+      const result = await updateShoe(shoe.id, { status: "On Hold", hold_name: name, hold_until: holdUntil });
+      if (result) {
+        toast({ title: `Placed ${shoe.name} on Hold.` });
+      } else {
+        toast({ title: `Failed to place ${shoe.name} on Hold.`, variant: "destructive" });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({ title: `Error placing hold: ${err?.message || err}`, variant: "destructive" });
+    }
+  };
+
+  const handleReinstate = async (shoe) => {
+    if (!window.confirm(`Return "${shoe.name}" to Available inventory?`)) return;
+    try {
+      const result = await updateShoe(shoe.id, { status: "Available", sold_date: null, buyer_name: null, order_id: null });
+      if (result) toast({ title: `Returned ${shoe.name} to Available.` });
+      else toast({ title: `Failed to update ${shoe.name}.`, variant: "destructive" });
+    } catch (err) {
+      console.error(err);
+      toast({ title: `Error updating status: ${err?.message || err}`, variant: "destructive" });
+    }
   };
 
   const handleRelease = (shoe) => {
@@ -628,7 +676,13 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
                       )}>{shoe.status}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handlePlaceHold(shoe)} className="h-8 font-body text-xs text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10">
+                          <Clock className="w-3 h-3 mr-1" /> Hold
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleMarkSold(shoe)} className="h-8 font-body text-xs text-destructive border-destructive/30 hover:bg-destructive/10">
+                          <CheckCircle className="w-3 h-3 mr-1" /> Sold
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => { setEditingShoe(shoe); setFormOpen(true); }} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={`Edit ${shoe.name}`}>
                           <Pencil className="w-4 h-4" />
                         </Button>
@@ -710,9 +764,12 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="outline" size="sm" onClick={() => handleRelease(shoe)} className="h-8 font-body text-xs text-green-400 border-green-500/30 hover:bg-green-500/10" aria-label={`Release ${shoe.name} from hold`}>
-                            <RefreshCw className="w-3 h-3 mr-1" /> Release
-                          </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleRelease(shoe)} className="h-8 font-body text-xs text-green-400 border-green-500/30 hover:bg-green-500/10" aria-label={`Release ${shoe.name} from hold`}>
+                              <RefreshCw className="w-3 h-3 mr-1" /> Release
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleMarkSold(shoe)} className="h-8 font-body text-xs text-destructive border-destructive/30 hover:bg-destructive/10">
+                              <CheckCircle className="w-3 h-3 mr-1" /> Sold
+                            </Button>
                           <Button variant="ghost" size="icon" onClick={() => { setEditingShoe(shoe); setFormOpen(true); }} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={`Edit ${shoe.name}`}>
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -791,7 +848,10 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleReinstate(shoe)} className="h-8 font-body text-xs">
+                            Reinstate
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => { setEditingShoe(shoe); setFormOpen(true); }} className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={`Edit ${shoe.name}`}>
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -841,7 +901,277 @@ function InventorySection({ shoes, addShoe, updateShoe, deleteShoeById }) {
     </div>
   );
 }
+
+// â”€â”€â”€ Orders Section â”€â”€â”€
+function OrdersSection({ isAdmin }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
+        if (!error && Array.isArray(data)) {
+          if (mounted) setOrders(data);
+        } else {
+          // fallback to localStorage
+          const raw = localStorage.getItem("txprokicks_orders");
+          if (raw) {
+            try { const parsed = JSON.parse(raw); if (mounted) setOrders(parsed); } catch { if (mounted) setOrders([]); }
+          } else if (mounted) setOrders([]);
+        }
+      } catch (err) {
+        console.error("Error fetching orders:", err);
+        const raw = localStorage.getItem("txprokicks_orders");
+        if (raw) {
+          try { const parsed = JSON.parse(raw); if (mounted) setOrders(parsed); } catch { if (mounted) setOrders([]); }
+        } else if (mounted) setOrders([]);
+      }
+      if (mounted) setLoading(false);
+    };
+    fetchOrders();
+    return () => { mounted = false; };
+  }, []);
+
+  if (!isAdmin) {
+    return (
+      <div className="bg-card border border-border rounded-xl p-6">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldCheck className="w-4 h-4 text-primary" />
+          <h2 className="font-heading text-sm font-semibold text-foreground">Orders (admin only)</h2>
+        </div>
+        <p className="font-body text-sm text-muted-foreground">Only admin users can view and manage orders. Contact your site administrator to gain access.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="font-heading text-3xl font-bold text-foreground">Orders</h1>
+        <p className="font-body text-muted-foreground mt-1">Recent customer orders. Shipping orders are marked Sold; Pickup orders are held.</p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 py-4 text-muted-foreground font-body text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading orders…</div>
+      ) : orders.length === 0 ? (
+        <p className="font-body text-sm text-muted-foreground italic py-2">No orders found.</p>
+      ) : (
+        <div className="space-y-3">
+          {orders.map((o) => (
+            <div key={o.id ?? o.created_at} className="bg-secondary/50 border border-border rounded-xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-body text-sm font-medium text-foreground">Order {o.id ?? "(local)"} · {o.type}</p>
+                  <p className="font-body text-xs text-muted-foreground">{o.contact?.name} • {o.contact?.email} • {o.contact?.phone}</p>
+                  {o.type === 'pickup' && o.pickup_date && <p className="font-body text-xs text-muted-foreground mt-1">Pickup: {new Date(o.pickup_date).toLocaleString()}</p>}
+                  {o.type === 'shipping' && o.shipping_address && (
+                    <p className="font-body text-xs text-muted-foreground mt-1">Ship to: {o.shipping_address.line1}, {o.shipping_address.city} {o.shipping_address.state} {o.shipping_address.zip}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="font-heading text-sm font-bold text-foreground">${(o.total ?? 0).toLocaleString()}</p>
+                  <p className="font-body text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="font-body text-xs text-muted-foreground mb-2">Items:</div>
+                <div className="space-y-1">
+                  {(o.items || []).map((it) => (
+                    <div key={it.id} className="flex items-center justify-between text-sm">
+                      <div className="min-w-0 truncate">{it.name}</div>
+                      <div className="font-heading text-sm font-bold">${(it.price ?? 0).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 // â”€â”€â”€ Settings Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function DiscountCodesManager() {
+  const { reloadDiscountCodes } = useCart();
+  const [codes, setCodes] = useState([]);
+  const [codesLoading, setCodesLoading] = useState(true);
+  const [newCode, setNewCode] = useState("");
+  const [newType, setNewType] = useState("percent");
+  const [newValue, setNewValue] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [alert, setAlert] = useState({ type: "", message: "" });
+
+  const loadCodes = async () => {
+    setCodesLoading(true);
+    try {
+      const { data, error } = await supabase.from("discount_codes").select("*").order("created_at", { ascending: false });
+      if (!error && Array.isArray(data)) {
+        setCodes(data);
+        setCodesLoading(false);
+        return;
+      }
+    } catch (err) {
+      // ignore and fallback
+    }
+    // fallback localStorage
+    try {
+      const raw = localStorage.getItem("txprokicks_discount_codes");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setCodes(parsed);
+        else setCodes(parsed ? [parsed] : []);
+      } else {
+        setCodes([]);
+      }
+    } catch (err) {
+      setCodes([]);
+    }
+    setCodesLoading(false);
+  };
+
+  useEffect(() => { loadCodes(); }, []);
+
+  const handleCreateCode = async (e) => {
+    e?.preventDefault();
+    setAlert({ type: "", message: "" });
+    if (!newCode) { setAlert({ type: "error", message: "Code is required." }); return; }
+    const normalized = newCode.trim().toUpperCase();
+    const val = Number(newValue);
+    if (!val || val <= 0) { setAlert({ type: "error", message: "Enter a valid numeric value." }); return; }
+    try {
+      const { data, error } = await supabase.from("discount_codes").insert([{ code: normalized, type: newType, value: val, label: newLabel }]).select().single();
+      if (error) throw error;
+      setAlert({ type: "success", message: `Created ${normalized}` });
+      setNewCode(""); setNewValue(""); setNewLabel("");
+      await loadCodes();
+      if (reloadDiscountCodes) reloadDiscountCodes();
+      return;
+    } catch (err) {
+      // fallback to localStorage
+      try {
+        const raw = localStorage.getItem("txprokicks_discount_codes");
+        const arr = raw ? JSON.parse(raw) : [];
+        const row = { id: Date.now(), code: normalized, type: newType, value: val, label: newLabel };
+        arr.unshift(row);
+        localStorage.setItem("txprokicks_discount_codes", JSON.stringify(arr));
+        setCodes(arr);
+        setAlert({ type: "success", message: `Created ${normalized} (local)` });
+        setNewCode(""); setNewValue(""); setNewLabel("");
+        if (reloadDiscountCodes) reloadDiscountCodes();
+        return;
+      } catch (e) {
+        setAlert({ type: "error", message: err?.message || "Failed to create code." });
+      }
+    }
+  };
+
+  const handleDelete = async (id, code) => {
+    if (!window.confirm(`Delete code ${code}?`)) return;
+    try {
+      const { error } = await supabase.from("discount_codes").delete().eq("id", id);
+      if (!error) {
+        setCodes((prev) => prev.filter((c) => c.id !== id));
+        setAlert({ type: "success", message: `Deleted ${code}` });
+        if (reloadDiscountCodes) reloadDiscountCodes();
+        return;
+      }
+    } catch (err) {
+      // ignore and fallback
+    }
+    // fallback localStorage
+    try {
+      const raw = localStorage.getItem("txprokicks_discount_codes");
+      const arr = raw ? JSON.parse(raw) : [];
+      const filtered = arr.filter((c) => c.id !== id && c.code !== code);
+      localStorage.setItem("txprokicks_discount_codes", JSON.stringify(filtered));
+      setCodes(filtered);
+      setAlert({ type: "success", message: `Deleted ${code} (local)` });
+      if (reloadDiscountCodes) reloadDiscountCodes();
+    } catch (e) {
+      setAlert({ type: "error", message: "Failed to delete code." });
+    }
+  };
+
+  return (
+    <div>
+      <div className="bg-secondary/50 border border-border rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Plus className="w-4 h-4 text-primary" />
+          <span className="font-heading text-sm font-semibold text-foreground">Add New Code</span>
+        </div>
+        <form onSubmit={handleCreateCode} className="space-y-3 max-w-md" noValidate>
+          <div>
+            <Label className="font-body text-sm text-muted-foreground">Code</Label>
+            <Input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="WELCOME10" className="mt-1 bg-background border-border" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="font-body text-sm text-muted-foreground">Type</Label>
+              <Select value={newType} onValueChange={(v) => setNewType(v)}>
+                <SelectTrigger className="h-8 text-xs bg-secondary border-border font-body w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percent">Percent</SelectItem>
+                  <SelectItem value="flat">Fixed Amount</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="font-body text-sm text-muted-foreground">Value</Label>
+              <Input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="10" className="mt-1 bg-background border-border" />
+            </div>
+            <div>
+              <Label className="font-body text-sm text-muted-foreground">Label (optional)</Label>
+              <Input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="10% off new customers" className="mt-1 bg-background border-border" />
+            </div>
+          </div>
+          {alert.message && (
+            <p className={cn(
+              "font-body text-sm rounded-lg px-3 py-2",
+              alert.type === "error" ? "text-destructive bg-destructive/10 border border-destructive/20" : "text-green-400 bg-green-500/10 border border-green-500/20"
+            )}>{alert.message}</p>
+          )}
+          <div className="flex items-center gap-2">
+            <Button type="submit" size="sm" className="font-heading tracking-wider">Create Code</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setNewCode(""); setNewValue(""); setNewLabel(""); setAlert({}); }}>Reset</Button>
+          </div>
+        </form>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <ShieldCheck className="w-4 h-4 text-primary" />
+          <span className="font-heading text-sm font-semibold text-foreground">Active Codes</span>
+        </div>
+        {codesLoading ? (
+          <div className="flex items-center gap-2 py-4 text-muted-foreground font-body text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading codes…</div>
+        ) : codes.length === 0 ? (
+          <p className="font-body text-sm text-muted-foreground italic py-2">No discount codes yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {codes.map((c) => (
+              <div key={c.id ?? c.code} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-secondary/50 border border-border">
+                <div className="min-w-0">
+                  <p className="font-body text-sm font-medium text-foreground truncate">{c.code}</p>
+                  <p className="font-body text-xs text-muted-foreground">{c.label || (c.type === 'percent' ? `${c.value}% off` : `$${c.value} off`)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id, c.code)} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
@@ -1111,6 +1441,19 @@ function SettingsSection({ shoes, addShoe, clearAll, isAdmin }) {
           Download an existing export to use as a template.
         </p>
       </div>
+
+      {/* Discount Codes — admin only */}
+      {isAdmin && (
+        <div className="bg-card border border-border rounded-xl p-6 mt-6">
+          <div className="flex items-center gap-2 mb-1">
+            <DollarSign className="w-4 h-4 text-primary" />
+            <h2 className="font-heading text-lg font-bold text-foreground">Discount Codes</h2>
+          </div>
+          <p className="font-body text-sm text-muted-foreground mb-5">Create and manage discount codes available to customers at checkout.</p>
+
+          <DiscountCodesManager />
+        </div>
+      )}
 
       {/* User Management — admin only */}
       {isAdmin && <div className="bg-card border border-border rounded-xl p-6 mt-6">
@@ -1383,6 +1726,9 @@ export default function Admin() {
               updateShoe={updateShoe}
               deleteShoeById={deleteShoe}
             />
+          )}
+          {activeSection === "orders" && (
+            <OrdersSection isAdmin={isAdmin} />
           )}
           {activeSection === "settings" && (
             <SettingsSection shoes={shoes} addShoe={addShoe} clearAll={clearAll} isAdmin={isAdmin} />

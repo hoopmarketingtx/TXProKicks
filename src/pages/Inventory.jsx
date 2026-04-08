@@ -3,18 +3,19 @@ import { useShoes } from "@/lib/ShoeContext";
 import { Loader2, Search, SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Navbar from "../components/Navbar";
 import ShoeCard from "../components/ShoeCard";
-import ShoeDetailModal from "../components/ShoeDetailModal";
 import CheckoutModal from "../components/CheckoutModal";
 import Footer from "../components/Footer";
+import { generateStandardSizeOptions, parseSizeValue } from "@/lib/size-utils";
+import { useNavigate } from "react-router-dom";
+import { BRAND_OPTIONS, normalizeBrand } from "@/lib/brand-utils";
 
-const BRANDS = ["All", "Nike", "Jordan Brand", "Adidas", "New Balance", "Yeezy", "Puma", "Reebok", "Converse", "Vans", "Other"];
+const BRANDS = BRAND_OPTIONS;
 const CONDITIONS = ["All", "New", "Like New", "Gently Used"];
-const STATUSES = ["Available", "On Hold", "Sold", "All"];
+// Statuses are admin-only; customer view hides status controls
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest First" },
   { value: "price-asc", label: "Price: Low → High" },
@@ -24,6 +25,7 @@ const SORT_OPTIONS = [
 
 export default function Inventory() {
   const { shoes, loading } = useShoes();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState("All");
   const [sizeFilter, setSizeFilter] = useState("All");
@@ -33,16 +35,10 @@ export default function Inventory() {
   const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selectedShoe, setSelectedShoe] = useState(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
-  // Derive unique sizes from full inventory, sorted numerically
-  const availableSizes = useMemo(() => {
-    const sizes = [...new Set(shoes.map((s) => s.size).filter(Boolean))].sort(
-      (a, b) => parseFloat(a) - parseFloat(b)
-    );
-    return ["All", ...sizes];
-  }, [shoes]);
+  // Use a shared standard list of US sizes (Men) with W / Y conversions
+  const sizeOptions = useMemo(() => generateStandardSizeOptions(4, 15, 0.5), []);
 
   // Count active (non-default) filters for badge
   const activeFilterCount = [
@@ -60,8 +56,13 @@ export default function Inventory() {
         const q = search.toLowerCase();
         if (!s.name?.toLowerCase().includes(q) && !s.brand?.toLowerCase().includes(q)) return false;
       }
-      if (brandFilter !== "All" && s.brand !== brandFilter) return false;
-      if (sizeFilter !== "All" && s.size !== sizeFilter) return false;
+      if (brandFilter !== "All" && normalizeBrand(s.brand) !== brandFilter) return false;
+      if (sizeFilter !== "All") {
+        const desired = parseSizeValue(sizeFilter);
+        const shoeSize = parseSizeValue(s.size);
+        if (!Number.isFinite(shoeSize) || !Number.isFinite(desired)) return false;
+        if (shoeSize !== desired) return false;
+      }
       if (conditionFilter !== "All" && s.condition !== conditionFilter) return false;
       if (statusFilter !== "All" && s.status !== statusFilter) return false;
       if (minPrice !== "" && (s.price || 0) < Number(minPrice)) return false;
@@ -88,10 +89,7 @@ export default function Inventory() {
     setSortBy("newest");
   };
 
-  // Total counts from full inventory (not filtered)
-  const totalAvailable = shoes.filter((s) => s.status === "Available").length;
-  const totalOnHold = shoes.filter((s) => s.status === "On Hold").length;
-  const totalSold = shoes.filter((s) => s.status === "Sold").length;
+  // (Admin-only) status counts removed from customer view
 
   return (
     <div className="min-h-screen bg-background">
@@ -156,7 +154,17 @@ export default function Inventory() {
               <label className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1.5 block">Size</label>
               <Select value={sizeFilter} onValueChange={setSizeFilter}>
                 <SelectTrigger className="bg-secondary border-border font-body text-sm h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>{availableSizes.map((sz) => <SelectItem key={sz} value={sz}>{sz}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    <SelectItem value="All">All</SelectItem>
+                    {sizeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        <div className="flex flex-col">
+                          <span className="leading-tight">{opt.primary}</span>
+                          <span className="text-xs text-muted-foreground mt-0.5">{opt.secondary}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
               </Select>
             </div>
             <div>
@@ -166,13 +174,7 @@ export default function Inventory() {
                 <SelectContent>{CONDITIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1.5 block">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="bg-secondary border-border font-body text-sm h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+            {/* Status is admin-only; hidden on customer-facing inventory */}
             <div>
               <label className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1.5 block">Min Price</label>
               <Input
@@ -202,16 +204,7 @@ export default function Inventory() {
             <span className="font-body text-sm text-muted-foreground">
               {filtered.length} result{filtered.length !== 1 ? "s" : ""}
             </span>
-            <span className="text-border">·</span>
-            <Badge variant="outline" className="font-body text-xs px-2.5 py-0.5 border-green-500/30 text-green-400">
-              {totalAvailable} Available
-            </Badge>
-            <Badge variant="outline" className="font-body text-xs px-2.5 py-0.5 border-yellow-500/30 text-yellow-400">
-              {totalOnHold} On Hold
-            </Badge>
-            <Badge variant="outline" className="font-body text-xs px-2.5 py-0.5 border-border text-muted-foreground">
-              {totalSold} Sold
-            </Badge>
+            {/* Status badges removed from customer view */}
             {(activeFilterCount > 0 || search) && (
               <button
                 onClick={clearFilters}
@@ -247,18 +240,12 @@ export default function Inventory() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filtered.map((shoe) => (
-              <ShoeCard key={shoe.id} shoe={shoe} onClick={setSelectedShoe} />
+              <ShoeCard key={shoe.id} shoe={shoe} onClick={() => navigate(`/shoe/${shoe.id}`)} />
             ))}
           </div>
         )}
       </div>
-
-      <ShoeDetailModal
-        shoe={selectedShoe}
-        open={!!selectedShoe}
-        onClose={() => setSelectedShoe(null)}
-        onCheckout={() => { setSelectedShoe(null); setCheckoutOpen(true); }}
-      />
+      
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
       <Footer />
     </div>

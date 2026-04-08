@@ -12,6 +12,7 @@ import Home from './pages/Home';
 import Inventory from './pages/Inventory';
 import Admin from './pages/Admin';
 import About from './pages/About';
+import Shoe from './pages/Shoe';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -42,6 +43,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Home />} />
       <Route path="/inventory" element={<Inventory />} />
       <Route path="/about" element={<About />} />
+      <Route path="/shoe/:id" element={<Shoe />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>

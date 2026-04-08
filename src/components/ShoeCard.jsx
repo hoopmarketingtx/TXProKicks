@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ShoppingCart, Check } from "lucide-react";
 import { useCart } from "@/lib/CartContext";
+import { Link } from "react-router-dom";
 
 const conditionColors = {
   "New": "bg-green-500/20 text-green-400 border-green-500/30",
@@ -14,7 +15,7 @@ const conditionColors = {
 export default function ShoeCard({ shoe, onClick }) {
   const { addToCart, isInCart, setCartOpen } = useCart();
   const inCart = isInCart(shoe.id);
-  const isAvailable = shoe.status === "Available";
+  
 
   const handleCartClick = (e) => {
     e.stopPropagation();
@@ -41,18 +42,7 @@ export default function ShoeCard({ shoe, onClick }) {
           alt={shoe.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        {shoe.status === "Sold" && (
-          <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-            <span className="font-heading text-2xl font-bold text-destructive tracking-widest rotate-[-15deg]">SOLD</span>
-          </div>
-        )}
-        {shoe.status === "On Hold" && (
-          <div className="absolute top-3 right-3">
-            <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 font-body text-xs">
-              ON HOLD
-            </Badge>
-          </div>
-        )}
+        
       </div>
       <div className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
@@ -72,21 +62,23 @@ export default function ShoeCard({ shoe, onClick }) {
             {shoe.condition}
           </Badge>
         </div>
-        {isAvailable && (
-          <Button
-            size="sm"
-            onClick={handleCartClick}
-            className={`w-full mt-2 font-heading tracking-wider text-xs ${
-              inCart ? "bg-green-600 hover:bg-green-700" : ""
-            }`}
-          >
-            {inCart ? (
-              <><Check className="w-3.5 h-3.5 mr-1.5" /> In Cart</>
-            ) : (
-              <><ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Add to Cart</>
-            )}
-          </Button>
-        )}
+        <Button
+          size="sm"
+          onClick={handleCartClick}
+          className={`w-full mt-2 font-heading tracking-wider text-xs ${
+            inCart ? "bg-green-600 hover:bg-green-700" : ""
+          }`}
+        >
+          {inCart ? (
+            <><Check className="w-3.5 h-3.5 mr-1.5" /> In Cart</>
+          ) : (
+            <><ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Add to Cart</>
+          )}
+        </Button>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <Link to={`/shoe/${shoe.id}`} onClick={(e) => e.stopPropagation()} className="text-sm text-primary hover:underline">View</Link>
+          <a href={`/shoe/${shoe.id}`} onClick={(e) => e.stopPropagation()} className="text-sm text-muted-foreground">Share</a>
+        </div>
       </div>
     </motion.div>
   );

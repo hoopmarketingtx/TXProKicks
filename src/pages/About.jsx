@@ -13,7 +13,7 @@ const STATS = [
   { icon: ShoppingBag, value: "150+", label: "Pairs sold on day one" },
   { icon: Flame,       value: "19",   label: "Years old at opening" },
   { icon: Clock,       value: "100+", label: "Hours worked weekly" },
-  { icon: Trophy,      value: "Est. 2024", label: "Founded" },
+  { icon: Trophy,      value: "Est. 2020", label: "Founded" },
 ];
 
 const QUOTES = [

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabase';
+import { SEED_SHOES } from './seed-data';
 
 const ShoeContext = createContext(null);
 
@@ -9,16 +10,35 @@ export const ShoeProvider = ({ children }) => {
 
   const fetchShoes = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('shoes')
-      .select('*')
-      .order('created_date', { ascending: false });
-    if (error) {
-      console.error('Error fetching shoes:', error);
-    } else {
-      setShoes(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('shoes')
+        .select('*')
+        .order('created_date', { ascending: false });
+      if (error) {
+        console.error('Error fetching shoes:', error);
+        // In development, fallback to seeded local data for easier testing
+        if (import.meta.env.DEV && SEED_SHOES && SEED_SHOES.length) {
+          setShoes(SEED_SHOES);
+        } else {
+          setShoes([]);
+        }
+      } else if (!data || data.length === 0) {
+        // No rows in DB — use seed data in dev for convenience
+        if (import.meta.env.DEV && SEED_SHOES && SEED_SHOES.length) {
+          setShoes(SEED_SHOES);
+        } else {
+          setShoes(data || []);
+        }
+      } else {
+        setShoes(data || []);
+      }
+    } catch (e) {
+      console.error('Unexpected error fetching shoes:', e);
+      if (import.meta.env.DEV && SEED_SHOES && SEED_SHOES.length) setShoes(SEED_SHOES);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {

@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, ShoppingCart, Check, Zap } from "lucide-react";
 import { useCart } from "@/lib/CartContext";
+import { toast } from "@/components/ui/use-toast";
+import { Link } from "react-router-dom";
 
 export default function ShoeDetailModal({ shoe, open, onClose, onCheckout }) {
   const [currentImage, setCurrentImage] = useState(0);
   const { addToCart, isInCart, setCartOpen } = useCart();
   const inCart = shoe ? isInCart(shoe.id) : false;
-  const isAvailable = shoe?.status === "Available";
+  
 
   const handleAddToCart = () => {
     addToCart(shoe);
@@ -21,6 +23,16 @@ export default function ShoeDetailModal({ shoe, open, onClose, onCheckout }) {
     addToCart(shoe);
     onClose();
     onCheckout?.();
+  };
+
+  const copyLink = async () => {
+    try {
+      const url = `${window.location.origin}/shoe/${shoe.id}`;
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied to clipboard" });
+    } catch (err) {
+      toast({ title: "Failed to copy link", variant: "destructive" });
+    }
   };
 
   if (!shoe) return null;
@@ -82,38 +94,27 @@ export default function ShoeDetailModal({ shoe, open, onClose, onCheckout }) {
               </div>
             </div>
             <div className="mt-6 space-y-3">
-              <Badge
-                className={`font-body text-sm px-4 py-1.5 ${
-                  shoe.status === "Available"
-                    ? "bg-green-500/20 text-green-400 border-green-500/30"
-                    : shoe.status === "Sold"
-                    ? "bg-destructive/20 text-destructive border-destructive/30"
-                    : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                }`}
-                variant="outline"
-              >
-                {shoe.status}
-              </Badge>
-              {isAvailable && (
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    variant="outline"
-                    className={`flex-1 font-heading tracking-wider text-sm ${
-                      inCart ? "border-green-500/50 text-green-400 hover:bg-green-500/10" : ""
-                    }`}
-                    onClick={inCart ? () => { setCartOpen(true); onClose(); } : handleAddToCart}
-                  >
-                    {inCart ? (
-                      <><Check className="w-4 h-4 mr-1.5" /> In Cart</>
-                    ) : (
-                      <><ShoppingCart className="w-4 h-4 mr-1.5" /> Add to Cart</>
-                    )}
-                  </Button>
-                  <Button className="flex-1 font-heading tracking-wider text-sm" onClick={handleBuyNow}>
-                    <Zap className="w-4 h-4 mr-1.5" /> Buy Now
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  className={`flex-1 font-heading tracking-wider text-sm ${
+                    inCart ? "border-green-500/50 text-green-400 hover:bg-green-500/10" : ""
+                  }`}
+                  onClick={inCart ? () => { setCartOpen(true); onClose(); } : handleAddToCart}
+                >
+                  {inCart ? (
+                    <><Check className="w-4 h-4 mr-1.5" /> In Cart</>
+                  ) : (
+                    <><ShoppingCart className="w-4 h-4 mr-1.5" /> Add to Cart</>
+                  )}
+                </Button>
+                <Button className="flex-1 font-heading tracking-wider text-sm" onClick={handleBuyNow}>
+                  <Zap className="w-4 h-4 mr-1.5" /> Buy Now
+                </Button>
+                <Button variant="ghost" className="flex-0" onClick={copyLink}>
+                  Share
+                </Button>
+              </div>
             </div>
           </div>
         </div>

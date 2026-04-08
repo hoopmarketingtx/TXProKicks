@@ -6,7 +6,7 @@ import { useCart } from "@/lib/CartContext";
 import CheckoutModal from "./CheckoutModal";
 
 export default function CartDrawer() {
-  const { items, removeFromCart, total, cartOpen, setCartOpen } = useCart();
+  const { items, removeFromCart, subtotal, total, preTaxTotal, taxAmount, discountAmount, discountCode, cartOpen, setCartOpen } = useCart();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   return (
@@ -114,10 +114,33 @@ export default function CartDrawer() {
               {/* Footer */}
               {items.length > 0 && (
                 <div className="border-t border-border px-5 py-5 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-body text-sm text-muted-foreground">Subtotal ({items.length} item{items.length !== 1 ? "s" : ""})</span>
-                    <span className="font-heading text-2xl font-bold text-foreground">${total.toLocaleString()}</span>
-                  </div>
+                  <div className="space-y-2">
+                        {(() => {
+                          const fmt = (v) => (Number(v || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                          return (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span className="font-body text-sm text-muted-foreground">Subtotal ({items.length} item{items.length !== 1 ? "s" : ""})</span>
+                                <span className="font-heading text-2xl font-bold text-foreground">${fmt(subtotal)}</span>
+                              </div>
+                              {discountAmount > 0 && (
+                                <div className="flex justify-between items-center">
+                                  <span className="font-body text-sm text-muted-foreground">Discount {discountCode && `(${discountCode})`}</span>
+                                  <span className="font-body text-sm text-destructive">-${fmt(discountAmount)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-center">
+                                <span className="font-body text-sm text-muted-foreground">Tax</span>
+                                <span className="font-heading text-2xl font-bold text-foreground">${fmt(taxAmount)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-body text-sm text-muted-foreground">Total</span>
+                                <span className="font-heading text-2xl font-bold text-foreground">${fmt(total)}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
                   <Button
                     className="w-full font-heading tracking-wider"
                     onClick={() => { setCartOpen(false); setCheckoutOpen(true); }}

@@ -265,7 +265,7 @@ function OverviewSection({ shoes, onNavigate }) {
   }, {});
   const sizeEntries = Object.entries(sizeCounts).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
 
-  // Sales chart data (last 30 days) and employee filter
+  // Sales chart data (month-by-month) and employee filter
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -282,24 +282,25 @@ function OverviewSection({ shoes, onNavigate }) {
   }, []);
 
   useEffect(() => {
-    // Build revenue timeseries for last 30 days
-    const days = 30;
+    // Build revenue timeseries for last 12 months (month-by-month)
+    const months = 12;
     const now = new Date();
     const series = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      const dayStr = d.toISOString().slice(0, 10);
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM
+      const monthLabel = d.toLocaleString(undefined, { month: "short", year: "numeric" });
       const filtered = sold.filter((s) => {
         if (!s.sold_date) return false;
-        const soldDay = new Date(s.sold_date).toISOString().slice(0, 10);
-        if (soldDay !== dayStr) return false;
+        const sd = new Date(s.sold_date);
+        const soldMonthKey = `${sd.getFullYear()}-${String(sd.getMonth() + 1).padStart(2, "0")}`;
+        if (soldMonthKey !== monthKey) return false;
         if (employeeFilter !== "All") return (s.sold_by === employeeFilter);
         return true;
       });
       const revenue = filtered.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
       const count = filtered.length;
-      series.push({ date: dayStr, revenue, count });
+      series.push({ month: monthKey, revenue, count, label: monthLabel });
     }
     setSalesData(series);
   }, [sold, employeeFilter]);
@@ -368,7 +369,7 @@ function OverviewSection({ shoes, onNavigate }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-primary" />
-            <span className="font-heading text-base font-semibold text-foreground">Sales (Last 30 days)</span>
+            <span className="font-heading text-base font-semibold text-foreground">Sales (Last 12 months)</span>
           </div>
           <div className="flex items-center gap-2">
             <Select value={employeeFilter} onValueChange={(v) => setEmployeeFilter(v)}>
@@ -384,10 +385,10 @@ function OverviewSection({ shoes, onNavigate }) {
             </Select>
           </div>
         </div>
-        <ChartContainer id="sales-overview" className="h-48" config={{ revenue: { color: '#10b981', label: 'Revenue' } }}>
+        <ChartContainer id="sales-overview" className="h-64" config={{ revenue: { color: '#10b981', label: 'Revenue' } }}>
           <LineChart data={salesData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString()} />
+            <XAxis dataKey="label" />
             <YAxis />
             <RechartsTooltip />
             <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={false} name="Revenue" />
